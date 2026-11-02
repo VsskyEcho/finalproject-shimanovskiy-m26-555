@@ -6,7 +6,7 @@ import hashlib
 import secrets
 from datetime import datetime
 
-#заглушка
+# заглушка
 EXCHANGE_RATES: dict[str, float] = {
     "USD": 1.0,
     "EUR": 1.0786,
@@ -14,6 +14,7 @@ EXCHANGE_RATES: dict[str, float] = {
     "BTC": 59337.21,
     "ETH": 3720.0,
 }
+
 
 class User:
     """
@@ -108,3 +109,124 @@ class User:
             "username": self._username,
             "registration_date": self._registration_date.isoformat(),
         }
+
+
+class Wallet:
+    """
+    Кошелёк пользователя
+    для одной валюты
+    """
+
+    def __init__(self, currency_code: str, balance: float = 0.0) -> None:
+        if not isinstance(currency_code, str) or not currency_code.strip():
+            raise ValueError("Код валюты не может быть пустым")
+        self.currency_code = currency_code.strip().upper()
+        self.balance = balance
+
+    @property
+    def balance(self) -> float:
+        return self._balance
+
+    @balance.setter
+    def balance(self, value: float) -> None:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise TypeError("Баланс должен быть числом")
+        if value < 0:
+            raise ValueError("Баланс не может быть отрицательным")
+        self._balance = float(value)
+
+    @staticmethod
+    def _check_amount(amount: float) -> None:
+        if isinstance(amount, bool) or not isinstance(amount, (int, float)):
+            raise TypeError('"amount" должен быть числом')
+        if amount <= 0:
+            raise ValueError('"amount" должен быть положительным числом')
+
+    def deposit(self, amount: float) -> None:
+        """
+        Депозит
+        """
+        self._check_amount(amount)
+        self._balance += amount
+
+    def withdraw(self, amount: float) -> None:
+        """
+        Проверка суммы снятия
+        """
+        self._check_amount(amount)
+        if amount > self._balance:
+            raise ValueError(
+                f"Недостаточно средств: доступно {self._balance:.4f} "
+                f"{self.currency_code}, требуется {amount:.4f} "
+                f"{self.currency_code}"
+            )
+        self._balance -= amount
+
+    def get_balance_info(self) -> str:
+        """
+        Информация о балансе
+        """
+        return f"{self.currency_code}: {self._balance:.4f}"
+
+
+class Portfolio:
+    """
+    Все кошельки одного пользователя
+    """
+
+    def __init__(
+        self,
+        user_id: int,
+        wallets: dict[str, Wallet] | None = None,
+        user: User | None = None,
+    ) -> None:
+        self._user_id = user_id
+        self._wallets: dict[str, Wallet] = dict(wallets) if wallets else {}
+        self._user = user
+
+    @property
+    def user_id(self) -> int:
+        return self._user_id
+
+    @property
+    def wallets(self) -> dict[str, Wallet]:
+        return dict(self._wallets)
+
+    @property
+    def user(self) -> User | None:
+        return self._user
+
+    def add_currency(self, currency_code: str) -> Wallet:
+        """
+        Добавление нового кошелёка в портфель (если его ещё нет)
+        """
+        code = currency_code.strip().upper()
+        if not code:
+            raise ValueError("Код валюты не может быть пустым")
+        if code in self._wallets:
+            raise ValueError(f'Кошелёк "{code}" уже существует')
+        wallet = Wallet(code)
+        self._wallets[code] = wallet
+        return wallet
+
+    def get_wallet(self, currency_code: str) -> Wallet | None:
+        """
+        Возврат Wallet по коду валюты
+        """
+        return self._wallets.get(currency_code.strip().upper())
+
+    def get_total_value(
+        self,
+        base_currency: str = "USD",
+        exchange_rates: dict[str, float] | None = None,
+    ) -> float:
+        rates = exchange_rates or EXCHANGE_RATES
+        base = base_currency.strip().upper()
+        if base not in rates:
+            raise ValueError(f'Неизвестная базовая валюта "{base}"')
+        total_usd = 0.0
+        for code, wallet in self._wallets.items():
+            if code not in rates:
+                raise ValueError(f'Нет курса для "{code}"')
+            total_usd += wallet.balance * rates[code]
+        return total_usd / rates[base]
