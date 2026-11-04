@@ -40,7 +40,7 @@ def register(username: str, password: str) -> User:
     Регистрирует пользователя
     и создаёт ему пустой портфель
     """
-    user = User.create(0, username, password)  # id назначим ниже; тут валидация
+    user = User.create(0, username, password)
     users = utils.load_users()
     if any(existing.username == user.username for existing in users):
         raise ValueError(f"Имя пользователя '{user.username}' уже занято")
@@ -153,9 +153,7 @@ def sell(
 
     rate = utils.get_rate(code, base)["rate"]
     before = wallet.balance
-    wallet.withdraw(
-        amount
-    )  # InsufficientFundsError, если не хватает из core.exceptions
+    wallet.withdraw(amount)
     utils.save_portfolios(portfolios)
     return {
         "currency": code,
@@ -183,3 +181,10 @@ def get_rate(from_code: str, to_code: str) -> dict:
         "updated_at": direct["updated_at"],
         "reverse_rate": reverse["rate"],
     }
+
+
+def get_supported_codes() -> list[str]:
+    """
+    Список поддерживаемых кодов валют
+    """
+    return sorted(utils.STUB_RATES_TO_USD)
