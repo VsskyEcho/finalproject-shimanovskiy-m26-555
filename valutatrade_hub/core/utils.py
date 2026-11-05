@@ -84,7 +84,7 @@ def portfolio_from_dict(data: dict) -> Portfolio:
     return Portfolio(data["user_id"], wallets)
 
 
-# ---------- загрузка и сохранение коллекций ----------
+# загрузка и сохранение коллекций
 def load_users() -> list[User]:
     return [user_from_dict(item) for item in load_json(USERS_FILE, [])]
 
@@ -101,7 +101,7 @@ def save_portfolios(portfolios: list[Portfolio]) -> None:
     save_json(PORTFOLIOS_FILE, [portfolio_to_dict(item) for item in portfolios])
 
 
-# ---------- валидаторы ----------
+# валидация
 def validate_currency_code(code: str) -> str:
     if not isinstance(code, str) or not code.strip():
         raise ValueError("Код валюты не может быть пустым")
@@ -118,7 +118,7 @@ def validate_amount(amount: Any) -> float:
     return value
 
 
-# ---------- курсы валют ----------
+# курсы валют
 def _is_fresh(updated_at: str) -> bool:
     age = datetime.now() - datetime.fromisoformat(updated_at)
     return age.total_seconds() < RATES_TTL_SECONDS
@@ -132,7 +132,9 @@ def _fetch_rate_from_stub(from_code: str, to_code: str) -> float:
 
 
 def get_rate(from_code: str, to_code: str) -> dict:
-    """Возвращает {'rate': float, 'updated_at': str} для пары from -> to."""
+    """
+    Возвращает курс обмена между двумя валютами
+    """
     from_code = validate_currency_code(from_code)
     to_code = validate_currency_code(to_code)
     now = datetime.now().isoformat(timespec="seconds")

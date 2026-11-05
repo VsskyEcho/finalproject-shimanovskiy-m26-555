@@ -15,8 +15,9 @@ from valutatrade_hub.core.exceptions import (
 )
 from valutatrade_hub.core.models import User
 
+from valutatrade_hub.core.currencies import CryptoCurrency, get_currency
+
 PROMPT = "> "
-CRYPTO_CODES = {"BTC", "ETH"}
 SEPARATOR_WIDTH = 33
 
 HELP_TEXT = """Доступные команды:
@@ -26,6 +27,7 @@ HELP_TEXT = """Доступные команды:
   buy --currency <код> --amount <число>
   sell --currency <код> --amount <число>
   get-rate --from <код> --to <код>
+  list-currencies --список валют
   help, exit"""
 
 
@@ -33,7 +35,9 @@ def _format_balance(code: str, value: float) -> str:
     """
     Форматирует баланс в зависимости от типа валюты
     """
-    return f"{value:.4f}" if code in CRYPTO_CODES else f"{value:,.2f}"
+    if isinstance(get_currency(code), CryptoCurrency):
+        return f'{value:.4f}'
+    return f'{value:,.2f}'
 
 
 def _format_rate(rate: float) -> str:
@@ -74,6 +78,7 @@ def build_parser() -> argparse.ArgumentParser:
     rate = commands.add_parser("get-rate", help="курс валюты")
     rate.add_argument("--from", dest="from_code", required=True)
     rate.add_argument("--to", dest="to_code", required=True)
+    commands.add_parser('list-currencies', help='список валют')
     return parser
 
 
@@ -92,12 +97,14 @@ class CommandLineInterface:
             "buy": self._handle_buy,
             "sell": self._handle_sell,
             "get-rate": self._handle_get_rate,
+            "list-currencies": self._handle_list_currencies,
         }
 
-    # ---------- главный цикл ----------
+    # основные функции
     def run(self) -> None:
         """
-        Запускает интерактивную консоль
+        Запуск интерактивной консоли
+        с обработкой команд и ошибок
         """
         print("ValutaTrade Hub. Команды: help, выход: exit")
         while True:
@@ -108,9 +115,10 @@ class CommandLineInterface:
                 break
             if not line:
                 continue
-            if line in {"exit", "quit"}:
+            command = line.lower()
+            if command in {'exit', 'quit'}:
                 break
-            if line == "help":
+            if command == 'help':
                 print(HELP_TEXT)
                 continue
             self.execute(line)
@@ -121,11 +129,19 @@ class CommandLineInterface:
         показывает понятные пользователю ошибки
         """
         try:
-            args = self._parser.parse_args(shlex.split(line))
-        except ValueError as error:
-            print(f"Не удалось разобрать команду: {error}")
+            tokens = shlex.split(line)
+        except ValueError as error:  # например, незакрытая кавычка
+            print(f'Не удалось разобрать команду: {error}')
             return
-        except SystemExit:  # argparse уже напечатал подсказку
+        if not tokens:
+            return
+        tokens[0] = tokens[0].lower()
+        if tokens[0] not in self._handlers:
+            print(f"Неизвестная команда '{tokens[0]}'. Введите help для списка команд")
+            return
+        try:
+            args = self._parser.parse_args(tokens)
+        except SystemExit:
             return
 
         try:
@@ -142,7 +158,7 @@ class CommandLineInterface:
         except ValueError as error:
             print(error)
 
-    # ---------- вспомогательное ----------
+    # вспомогательные функции
     def _require_login(self) -> User:
         """
         Проверяет, что пользователь вошёл в систему,
@@ -167,7 +183,7 @@ class CommandLineInterface:
         print(f"- {code}: было {result['before']:.4f} → стало {result['after']:.4f}")
         print(f"{summary}: {value:,.2f} {base}")
 
-    # ---------- обработчики команд ----------
+    # обработчики команд
     def _handle_register(self, args: argparse.Namespace) -> None:
         """
         Регистрирует нового пользователя
@@ -198,9 +214,10 @@ class CommandLineInterface:
         print(f"Портфель пользователя '{user.username}' (база: {base}):")
         for row in result["rows"]:
             balance = _format_balance(row["currency"], row["balance"])
-            print(f"- {row['currency']}: {balance}  → {row['value']:,.2f} {base}")
+            value = _format_balance(base, row['value'])
+            print(f'- {row["currency"]}: {balance}  → {value} {base}')
         print("-" * SEPARATOR_WIDTH)
-        print(f"ИТОГО: {result['total']:,.2f} {base}")
+        print(f'ИТОГО: {_format_balance(base, result["total"])} {base}')
 
     def _handle_buy(self, args: argparse.Namespace) -> None:
         """
@@ -235,6 +252,12 @@ class CommandLineInterface:
             f"Обратный курс {target}→{source}: {_format_rate(result['reverse_rate'])}"
         )
 
+    def _handle_list_currencies(self, args: argparse.Namespace) -> None:
+        """
+        Список всех поддерживаемых валют
+        """
+        for info in usecases.list_currencies():
+            print(info)
 
 def run_cli() -> None:
     """

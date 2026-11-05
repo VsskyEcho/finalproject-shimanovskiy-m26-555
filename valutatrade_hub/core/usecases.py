@@ -7,19 +7,13 @@ from valutatrade_hub.core import utils
 from valutatrade_hub.core.exceptions import CurrencyNotFoundError
 from valutatrade_hub.core.models import Portfolio, User
 
+from valutatrade_hub.core.currencies import (
+    get_all_currencies,
+    get_currency,
+    supported_codes,
+)
+
 DEFAULT_BASE_CURRENCY = "USD"
-
-
-def _require_known_currency(code: str) -> str:
-    """
-    Проверка формата кода и наличие валюты в справочнике.
-    Вернет либо ошибку: 'Код валюты не может быть пустым'
-    Или: "Неизвестная валюта 'code_name'"
-    """
-    code = utils.validate_currency_code(code)
-    if code not in utils.STUB_RATES_TO_USD:
-        raise CurrencyNotFoundError(code)
-    return code
 
 
 def _get_portfolio(portfolios: list[Portfolio], user_id: int) -> Portfolio:
@@ -75,9 +69,10 @@ def show_portfolio(user_id: int, base: str = DEFAULT_BASE_CURRENCY) -> dict:
     Возвращает строки портфеля
     и итог в базовой валюте
     """
-    base = utils.validate_currency_code(base)
-    if base not in utils.STUB_RATES_TO_USD:
-        raise ValueError(f"Неизвестная базовая валюта '{base}'")
+    try:
+        base = get_currency(base).code
+    except CurrencyNotFoundError as error:
+        raise ValueError(f"Неизвестная базовая валюта '{error.code}'") from None
 
     portfolio = _get_portfolio(utils.load_portfolios(), user_id)
     wallets = portfolio.wallets
@@ -106,7 +101,7 @@ def buy(
     Покупка: увеличивает баланс кошелька
     (создаёт его при необходимости)
     """
-    code = _require_known_currency(currency_code)
+    code = get_currency(currency_code).code
     amount = utils.validate_amount(amount)
     rate = utils.get_rate(code, base)["rate"]
 
@@ -137,9 +132,9 @@ def sell(
     base: str = DEFAULT_BASE_CURRENCY,
 ) -> dict:
     """
-    Продажа: уменьшает баланс кошелька,
-    считает оценочную выручку"""
-    code = _require_known_currency(currency_code)
+    Продажа валюты или криптовалюты
+    """
+    code = get_currency(currency_code).code
     amount = utils.validate_amount(amount)
 
     portfolios = utils.load_portfolios()
@@ -170,8 +165,8 @@ def get_rate(from_code: str, to_code: str) -> dict:
     """
     Курс from -> to, время обновления и обратный курс
     """
-    from_code = _require_known_currency(from_code)
-    to_code = _require_known_currency(to_code)
+    from_code = get_currency(from_code).code
+    to_code = get_currency(to_code).code
     direct = utils.get_rate(from_code, to_code)
     reverse = utils.get_rate(to_code, from_code)
     return {
@@ -187,4 +182,11 @@ def get_supported_codes() -> list[str]:
     """
     Список поддерживаемых кодов валют
     """
-    return sorted(utils.STUB_RATES_TO_USD)
+    return supported_codes()
+
+def list_currencies() -> list[str]:
+    """
+    Описания всех валют 
+    для вывода в интерфейсе
+    """
+    return [currency.get_display_info() for currency in get_all_currencies()]
