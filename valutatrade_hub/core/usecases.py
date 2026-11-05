@@ -4,16 +4,17 @@
 """
 
 from valutatrade_hub.core import utils
-from valutatrade_hub.core.exceptions import CurrencyNotFoundError
-from valutatrade_hub.core.models import Portfolio, User
-
 from valutatrade_hub.core.currencies import (
     get_all_currencies,
     get_currency,
     supported_codes,
 )
+from valutatrade_hub.core.exceptions import CurrencyNotFoundError
+from valutatrade_hub.core.models import Portfolio, User
+from valutatrade_hub.infra.settings import SettingsLoader
 
-DEFAULT_BASE_CURRENCY = "USD"
+# Базовая валюта
+DEFAULT_BASE_CURRENCY = SettingsLoader().get("default_base_currency")
 
 
 def _get_portfolio(portfolios: list[Portfolio], user_id: int) -> Portfolio:
@@ -184,9 +185,10 @@ def get_supported_codes() -> list[str]:
     """
     return supported_codes()
 
+
 def list_currencies() -> list[str]:
     """
-    Описания всех валют 
+    Описания всех валют
     для вывода в интерфейсе
     """
     return [currency.get_display_info() for currency in get_all_currencies()]

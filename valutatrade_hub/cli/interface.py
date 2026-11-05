@@ -8,14 +8,13 @@ from collections.abc import Callable
 from datetime import datetime
 
 from valutatrade_hub.core import usecases
+from valutatrade_hub.core.currencies import CryptoCurrency, get_currency
 from valutatrade_hub.core.exceptions import (
     ApiRequestError,
     CurrencyNotFoundError,
     InsufficientFundsError,
 )
 from valutatrade_hub.core.models import User
-
-from valutatrade_hub.core.currencies import CryptoCurrency, get_currency
 
 PROMPT = "> "
 SEPARATOR_WIDTH = 33
@@ -36,8 +35,8 @@ def _format_balance(code: str, value: float) -> str:
     Форматирует баланс в зависимости от типа валюты
     """
     if isinstance(get_currency(code), CryptoCurrency):
-        return f'{value:.4f}'
-    return f'{value:,.2f}'
+        return f"{value:.4f}"
+    return f"{value:,.2f}"
 
 
 def _format_rate(rate: float) -> str:
@@ -78,7 +77,7 @@ def build_parser() -> argparse.ArgumentParser:
     rate = commands.add_parser("get-rate", help="курс валюты")
     rate.add_argument("--from", dest="from_code", required=True)
     rate.add_argument("--to", dest="to_code", required=True)
-    commands.add_parser('list-currencies', help='список валют')
+    commands.add_parser("list-currencies", help="список валют")
     return parser
 
 
@@ -116,9 +115,9 @@ class CommandLineInterface:
             if not line:
                 continue
             command = line.lower()
-            if command in {'exit', 'quit'}:
+            if command in {"exit", "quit"}:
                 break
-            if command == 'help':
+            if command == "help":
                 print(HELP_TEXT)
                 continue
             self.execute(line)
@@ -131,7 +130,7 @@ class CommandLineInterface:
         try:
             tokens = shlex.split(line)
         except ValueError as error:  # например, незакрытая кавычка
-            print(f'Не удалось разобрать команду: {error}')
+            print(f"Не удалось разобрать команду: {error}")
             return
         if not tokens:
             return
@@ -214,10 +213,10 @@ class CommandLineInterface:
         print(f"Портфель пользователя '{user.username}' (база: {base}):")
         for row in result["rows"]:
             balance = _format_balance(row["currency"], row["balance"])
-            value = _format_balance(base, row['value'])
-            print(f'- {row["currency"]}: {balance}  → {value} {base}')
+            value = _format_balance(base, row["value"])
+            print(f"- {row['currency']}: {balance}  → {value} {base}")
         print("-" * SEPARATOR_WIDTH)
-        print(f'ИТОГО: {_format_balance(base, result["total"])} {base}')
+        print(f"ИТОГО: {_format_balance(base, result['total'])} {base}")
 
     def _handle_buy(self, args: argparse.Namespace) -> None:
         """
@@ -258,6 +257,7 @@ class CommandLineInterface:
         """
         for info in usecases.list_currencies():
             print(info)
+
 
 def run_cli() -> None:
     """

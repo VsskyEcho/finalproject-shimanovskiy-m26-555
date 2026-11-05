@@ -17,3 +17,15 @@ line-length = 88
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
+
+[tool.valutatrade]
+rates_ttl_seconds = 300
+default_base_currency = "USD"
+users_path = "data/users.json"
+portfolios_path = "data/portfolios.json"
+rates_path = "data/rates.json"
+log_path = "logs/actions.log"
+log_level = "INFO"
+log_format = "text"
+log_max_bytes = 1000000
+log_backup_count = 4

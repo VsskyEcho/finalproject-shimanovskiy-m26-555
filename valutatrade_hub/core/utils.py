@@ -3,13 +3,14 @@
 хранилище JSON, валидаторы, курсы валют
 """
 
-import json
 import math
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from valutatrade_hub.core.models import Portfolio, User, Wallet
+from valutatrade_hub.infra.database import DatabaseManager
+from valutatrade_hub.infra.settings import SettingsLoader
 
 # данные в папке data
 DATA_DIR = Path(__file__).resolve().parents[2] / "data"
@@ -26,25 +27,6 @@ STUB_RATES_TO_USD: dict[str, float] = {
     "BTC": 59337.21,
     "ETH": 3720.0,
 }
-
-
-def load_json(path: Path, default: Any) -> Any:
-    """
-    Загрузка данных json
-    """
-    if not path.exists() or path.stat().st_size == 0:
-        return default
-    with path.open(encoding="utf-8") as file:
-        return json.load(file)
-
-
-def save_json(path: Path, data: Any) -> None:
-    """
-    Сохранение json
-    """
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as file:
-        json.dump(data, file, ensure_ascii=False, indent=2)
 
 
 def user_to_dict(user: User) -> dict:
@@ -84,21 +66,23 @@ def portfolio_from_dict(data: dict) -> Portfolio:
     return Portfolio(data["user_id"], wallets)
 
 
-# загрузка и сохранение коллекций
+# загрузка и сохранение, пользователей и портфелей
 def load_users() -> list[User]:
-    return [user_from_dict(item) for item in load_json(USERS_FILE, [])]
+    return [user_from_dict(item) for item in DatabaseManager().read("users", [])]
 
 
 def save_users(users: list[User]) -> None:
-    save_json(USERS_FILE, [user_to_dict(user) for user in users])
+    DatabaseManager().write("users", [user_to_dict(user) for user in users])
 
 
 def load_portfolios() -> list[Portfolio]:
-    return [portfolio_from_dict(item) for item in load_json(PORTFOLIOS_FILE, [])]
+    items = DatabaseManager().read("portfolios", [])
+    return [portfolio_from_dict(item) for item in items]
 
 
 def save_portfolios(portfolios: list[Portfolio]) -> None:
-    save_json(PORTFOLIOS_FILE, [portfolio_to_dict(item) for item in portfolios])
+    data = [portfolio_to_dict(item) for item in portfolios]
+    DatabaseManager().write("portfolios", data)
 
 
 # валидация
@@ -120,8 +104,9 @@ def validate_amount(amount: Any) -> float:
 
 # курсы валют
 def _is_fresh(updated_at: str) -> bool:
+    ttl = SettingsLoader().get("rates_ttl_seconds")
     age = datetime.now() - datetime.fromisoformat(updated_at)
-    return age.total_seconds() < RATES_TTL_SECONDS
+    return age.total_seconds() < ttl
 
 
 def _fetch_rate_from_stub(from_code: str, to_code: str) -> float:
@@ -142,7 +127,8 @@ def get_rate(from_code: str, to_code: str) -> dict:
     if from_code == to_code:
         return {"rate": 1.0, "updated_at": now}
 
-    cache = load_json(RATES_FILE, {})
+    database = DatabaseManager()
+    cache = database.read("rates", {})
     key = f"{from_code}_{to_code}"
     cached = cache.get(key)
     if cached and _is_fresh(cached["updated_at"]):
@@ -152,5 +138,5 @@ def get_rate(from_code: str, to_code: str) -> dict:
     cache[key] = {"rate": rate, "updated_at": now}
     cache["source"] = "Stub"
     cache["last_refresh"] = now
-    save_json(RATES_FILE, cache)
+    database.write("rates", cache)
     return cache[key]
