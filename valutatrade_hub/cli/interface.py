@@ -15,6 +15,8 @@ from valutatrade_hub.core.exceptions import (
     InsufficientFundsError,
 )
 from valutatrade_hub.core.models import User
+from valutatrade_hub.infra.settings import SettingsLoader
+from valutatrade_hub.parser_service.updater import build_updater
 
 PROMPT = "> "
 SEPARATOR_WIDTH = 33
@@ -26,6 +28,8 @@ HELP_TEXT = """Доступные команды:
   buy --currency <код> --amount <число>
   sell --currency <код> --amount <число>
   get-rate --from <код> --to <код>
+  update-rates [--source coingecko|exchangerate]
+  show-rates [--currency <код>] [--top <N>] [--base <валюта>]
   list-currencies --список валют
   help, exit"""
 
@@ -48,6 +52,16 @@ def _format_rate(rate: float) -> str:
     if rate >= 1:
         return f"{rate:.4f}"
     return f"{rate:.8f}"
+
+
+def _format_local(timestamp: str | None) -> str:
+    """UTC-метка из хранилища ->
+    перевод в местное время пользователя
+    """
+    if not timestamp:
+        return "-"
+    moment = datetime.fromisoformat(timestamp).astimezone()
+    return f"{moment:%Y-%m-%d %H:%M:%S}"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -78,6 +92,14 @@ def build_parser() -> argparse.ArgumentParser:
     rate.add_argument("--from", dest="from_code", required=True)
     rate.add_argument("--to", dest="to_code", required=True)
     commands.add_parser("list-currencies", help="список валют")
+
+    update = commands.add_parser("update-rates", help="обновить курсы из API")
+    update.add_argument("--source", choices=("coingecko", "exchangerate"))
+
+    show_rates = commands.add_parser("show-rates", help="курсы из кеша")
+    show_rates.add_argument("--currency")
+    show_rates.add_argument("--top", type=int)
+    show_rates.add_argument("--base", default=usecases.DEFAULT_BASE_CURRENCY)
     return parser
 
 
@@ -96,6 +118,8 @@ class CommandLineInterface:
             "buy": self._handle_buy,
             "sell": self._handle_sell,
             "get-rate": self._handle_get_rate,
+            "update-rates": self._handle_update_rates,
+            "show-rates": self._handle_show_rates,
             "list-currencies": self._handle_list_currencies,
         }
 
@@ -244,10 +268,10 @@ class CommandLineInterface:
         """
         result = usecases.get_rate(args.from_code, args.to_code)
         source, target = result["from"], result["to"]
-        stamp = datetime.fromisoformat(result["updated_at"])
+        updated = _format_local(result["updated_at"])
         print(
             f"Курс {source}→{target}: {_format_rate(result['rate'])} "
-            f"(обновлено: {stamp:%Y-%m-%d %H:%M:%S})"
+            f"(обновлено: {updated})"
         )
         print(
             f"Обратный курс {target}→{source}: {_format_rate(result['reverse_rate'])}"
@@ -259,6 +283,42 @@ class CommandLineInterface:
         """
         for info in usecases.list_currencies():
             print(info)
+
+    def _handle_update_rates(self, args: argparse.Namespace) -> None:
+        """
+        Обновление курсов валют через Parser Service
+        """
+        print("INFO: Starting rates update...")
+        result = build_updater().run_update(args.source)
+        for item in result["sources"]:
+            if item["ok"]:
+                print(
+                    f"INFO: Fetching from {item['name']}... OK ({item['count']} rates)"
+                )
+            else:
+                print(f"ERROR: Failed to fetch from {item['name']}: {item['error']}.")
+        if result["total"]:
+            path = SettingsLoader().get("rates_path")
+            print(f"INFO: Writing {result['total']} rates to {path}...")
+        if result["has_errors"]:
+            print("Update completed with errors. Check logs/parser.log for details.")
+        else:
+            print(
+                f"Update successful. Total rates updated: {result['total']}. "
+                f"Last refresh: {_format_local(result['last_refresh'])}"
+            )
+
+    def _handle_show_rates(self, args: argparse.Namespace) -> None:
+        """
+        Показать курсы валют из кеша
+        """
+        result = usecases.show_rates(args.currency, args.top, args.base)
+        updated = _format_local(result["updated_at"])
+        print(f"Rates from cache (updated at {updated}):")
+        if not result["rows"]:
+            print("Нет подходящих курсов в кеше.")
+        for row in result["rows"]:
+            print(f"- {row['pair']}: {_format_rate(row['rate'])}")
 
 
 def run_cli() -> None:

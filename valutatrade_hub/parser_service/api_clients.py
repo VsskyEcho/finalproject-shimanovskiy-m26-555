@@ -20,7 +20,7 @@ def _positive_number(value: Any) -> TypeGuard[int | float]:
 class BaseApiClient(ABC):
     """
     Общий интерфейс клиентов
-    fetch_rates() -> {'BTC_USD': 59337.21, ...}
+    fetch_rates() -> dict[PAIR, float]
     """
 
     key: str

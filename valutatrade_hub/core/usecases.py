@@ -5,6 +5,7 @@
 
 from valutatrade_hub.core import utils
 from valutatrade_hub.core.currencies import (
+    CryptoCurrency,
     get_all_currencies,
     get_currency,
     supported_codes,
@@ -197,3 +198,61 @@ def list_currencies() -> list[str]:
     для вывода в интерфейсе
     """
     return [currency.get_display_info() for currency in get_all_currencies()]
+
+
+def _is_crypto(code: str) -> bool:
+    """
+    Проверка, является ли код криптовалютой
+    """
+    try:
+        return isinstance(get_currency(code), CryptoCurrency)
+    except CurrencyNotFoundError:
+        return False
+
+
+def show_rates(
+    currency: str | None = None,
+    top: int | None = None,
+    base: str = DEFAULT_BASE_CURRENCY,
+) -> dict:
+    """
+    Курсы из локального кеша
+    с фильтрами --currency, --top и --base
+    """
+    snapshot = utils.load_rates_snapshot()
+    usd_rates = {
+        pair.removesuffix("_USD"): entry["rate"]
+        for pair, entry in snapshot["pairs"].items()
+        if pair.endswith("_USD")
+    }
+    if not usd_rates:
+        raise ValueError(
+            "Локальный кеш курсов пуст. Выполните 'update-rates', "
+            "чтобы загрузить данные."
+        )
+    usd_rates["USD"] = 1.0
+
+    base = base.strip().upper()
+    if base not in usd_rates:
+        raise ValueError(f"Курс для '{base}' не найден в кеше.")
+    rows = [
+        {"code": code, "pair": f"{code}_{base}", "rate": rate / usd_rates[base]}
+        for code, rate in usd_rates.items()
+        if code != base
+    ]
+
+    if currency is not None:
+        code = currency.strip().upper()
+        rows = [row for row in rows if row["code"] == code]
+        if not rows:
+            raise ValueError(f"Курс для '{code}' не найден в кеше.")
+
+    if top is not None:
+        if top <= 0:
+            raise ValueError("'--top' должен быть положительным числом")
+        rows = [row for row in rows if _is_crypto(row["code"])]
+        rows.sort(key=lambda row: row["rate"], reverse=True)
+        rows = rows[:top]
+    else:
+        rows.sort(key=lambda row: row["pair"])
+    return {"updated_at": snapshot["last_refresh"], "rows": rows}
