@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "prettytable>=3.18.0",
+    "requests>=2.34.2",
 ]
 
 [dependency-groups]
@@ -24,6 +25,8 @@ default_base_currency = "USD"
 users_path = "data/users.json"
 portfolios_path = "data/portfolios.json"
 rates_path = "data/rates.json"
+exchange_rates_path = "data/exchange_rates.json"
+parser_log_path = "logs/parser.log"
 log_path = "logs/actions.log"
 log_level = "INFO"
 log_max_bytes = 1000000
