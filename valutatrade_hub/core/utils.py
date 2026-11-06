@@ -24,6 +24,9 @@ RATES_TTL_SECONDS = 300
 
 
 def user_to_dict(user: User) -> dict:
+    """
+    Преобразует объект User в словарь для сохранения в JSON
+    """
     return {
         "user_id": user.user_id,
         "username": user.username,
@@ -34,6 +37,9 @@ def user_to_dict(user: User) -> dict:
 
 
 def user_from_dict(data: dict) -> User:
+    """
+    Создаёт объект User из словаря
+    """
     return User(
         data["user_id"],
         data["username"],
@@ -44,6 +50,9 @@ def user_from_dict(data: dict) -> User:
 
 
 def portfolio_to_dict(portfolio: Portfolio) -> dict:
+    """
+    Преобразует объект Portfolio в словарь для сохранения в JSON
+    """
     return {
         "user_id": portfolio.user_id,
         "wallets": {
@@ -54,39 +63,61 @@ def portfolio_to_dict(portfolio: Portfolio) -> dict:
 
 
 def portfolio_from_dict(data: dict) -> Portfolio:
+    """
+    Создаёт объект Portfolio из словаря
+    """
     wallets = {
         code: Wallet(code, item["balance"]) for code, item in data["wallets"].items()
     }
     return Portfolio(data["user_id"], wallets)
 
 
-# загрузка и сохранение, пользователей и портфелей
 def load_users() -> list[User]:
+    """
+    Загружает список пользователей из users.json
+    """
     return [user_from_dict(item) for item in DatabaseManager().read("users", [])]
 
 
 def save_users(users: list[User]) -> None:
+    """
+    Сохраняет список пользователей в users.json
+    """
     DatabaseManager().write("users", [user_to_dict(user) for user in users])
 
 
 def load_portfolios() -> list[Portfolio]:
+    """
+    Загружает список портфелей из portfolios.json
+    """
     items = DatabaseManager().read("portfolios", [])
     return [portfolio_from_dict(item) for item in items]
 
 
 def save_portfolios(portfolios: list[Portfolio]) -> None:
+    """
+    Сохраняет список портфелей в portfolios.json
+    """
     data = [portfolio_to_dict(item) for item in portfolios]
     DatabaseManager().write("portfolios", data)
 
 
 # валидация
 def validate_currency_code(code: str) -> str:
+    """
+    Проверяет код валюты:
+    - не пустой
+    - 2-5 символов
+    """
     if not isinstance(code, str) or not code.strip():
         raise ValueError("Код валюты не может быть пустым")
     return code.strip().upper()
 
 
 def validate_amount(amount: Any) -> float:
+    """
+    Проверяет, что amount является положительным числом
+    """
     try:
         value = float(amount)
     except (TypeError, ValueError):

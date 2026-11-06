@@ -111,8 +111,14 @@ def get_currency(code: str) -> Currency:
 
 
 def get_all_currencies() -> list[Currency]:
+    """
+    Возвращает список всех валют
+    """
     return list(_CURRENCIES.values())
 
 
 def supported_codes() -> list[str]:
+    """
+    Возвращает список поддерживаемых кодов валют
+    """
     return sorted(_CURRENCIES)
