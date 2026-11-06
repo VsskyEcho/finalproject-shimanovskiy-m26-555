@@ -8,6 +8,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from valutatrade_hub.core.currencies import get_currency
+from valutatrade_hub.core.exceptions import ApiRequestError
 from valutatrade_hub.core.models import Portfolio, User, Wallet
 from valutatrade_hub.infra.database import DatabaseManager
 from valutatrade_hub.infra.settings import SettingsLoader
@@ -110,9 +112,11 @@ def _is_fresh(updated_at: str) -> bool:
 
 
 def _fetch_rate_from_stub(from_code: str, to_code: str) -> float:
-    """Единственное место, которое позже заменится на Parser Service."""
+    """
+    Parser Service
+    """
     if from_code not in STUB_RATES_TO_USD or to_code not in STUB_RATES_TO_USD:
-        raise ValueError(f"Не удалось получить курс для {from_code}→{to_code}")
+        raise ApiRequestError(f"курс {from_code}→{to_code} недоступен")
     return STUB_RATES_TO_USD[from_code] / STUB_RATES_TO_USD[to_code]
 
 
@@ -120,8 +124,8 @@ def get_rate(from_code: str, to_code: str) -> dict:
     """
     Возвращает курс обмена между двумя валютами
     """
-    from_code = validate_currency_code(from_code)
-    to_code = validate_currency_code(to_code)
+    from_code = get_currency(from_code).code
+    to_code = get_currency(to_code).code
     now = datetime.now().isoformat(timespec="seconds")
 
     if from_code == to_code:

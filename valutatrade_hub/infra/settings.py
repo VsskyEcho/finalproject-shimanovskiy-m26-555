@@ -50,7 +50,6 @@ class SettingsLoader:
         config.setdefault("rates_path", "data/rates.json")
         config.setdefault("log_path", "logs/actions.log")
         config.setdefault("log_level", "INFO")
-        config.setdefault("log_format", "text")
         config.setdefault("log_max_bytes", 1_000_000)
         config.setdefault("log_backup_count", 3)
         self._config = config

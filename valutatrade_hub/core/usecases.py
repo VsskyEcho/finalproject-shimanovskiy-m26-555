@@ -11,6 +11,7 @@ from valutatrade_hub.core.currencies import (
 )
 from valutatrade_hub.core.exceptions import CurrencyNotFoundError
 from valutatrade_hub.core.models import Portfolio, User
+from valutatrade_hub.decorators import log_action
 from valutatrade_hub.infra.settings import SettingsLoader
 
 # Базовая валюта
@@ -30,6 +31,7 @@ def _get_portfolio(portfolios: list[Portfolio], user_id: int) -> Portfolio:
     return portfolio
 
 
+@log_action("REGISTER")
 def register(username: str, password: str) -> User:
     """
     Регистрирует пользователя
@@ -51,6 +53,7 @@ def register(username: str, password: str) -> User:
     return user
 
 
+@log_action("LOGIN")
 def login(username: str, password: str) -> User:
     """
     Проверяет логин и пароль,
@@ -92,6 +95,7 @@ def show_portfolio(user_id: int, base: str = DEFAULT_BASE_CURRENCY) -> dict:
     return {"base": base, "rows": rows, "total": total}
 
 
+@log_action("BUY", verbose=True)
 def buy(
     user_id: int,
     currency_code: str,
@@ -126,6 +130,7 @@ def buy(
     }
 
 
+@log_action("SELL", verbose=True)
 def sell(
     user_id: int,
     currency_code: str,

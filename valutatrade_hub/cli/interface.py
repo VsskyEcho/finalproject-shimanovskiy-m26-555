@@ -151,6 +151,7 @@ class CommandLineInterface:
             print(error)
             codes = ", ".join(usecases.get_supported_codes())
             print(f"Поддерживаемые валюты: {codes}")
+            print("Подробности о валютах: list-currencies")
         except ApiRequestError as error:
             print(error)
             print("Повторите попытку позже или проверьте подключение к сети.")
@@ -197,8 +198,9 @@ class CommandLineInterface:
         """
         Вход в систему
         """
-        self._user = usecases.login(args.username, args.password)
-        print(f"Вы вошли как '{self._user.username}'")
+        user = usecases.login(args.username, args.password)
+        self._user = user
+        print(f"Вы вошли как '{user.username}'")
 
     def _handle_show_portfolio(self, args: argparse.Namespace) -> None:
         user = self._require_login()
