@@ -1,1 +1,9 @@
-[]
+[
+  {
+    "user_id": 1,
+    "username": "vsev",
+    "hashed_password": "1a47875e81b4781a69c024d840a6938abd920776ebba1ee4c1a36c9686f5774d",
+    "salt": "e824406f3809de26",
+    "registration_date": "2026-11-06T15:08:40"
+  }
+]

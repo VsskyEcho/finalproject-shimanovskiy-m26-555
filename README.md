@@ -114,3 +114,6 @@ Update successful. Total rates updated: 6. Last refresh: 2026-11-06 13:05:44
 
 Core Service не обращается к внешним API при каждой команде, а читает локальный
 кеш (data/rates.json)
+
+# Демо запись gif
+![Демо ValutaTrade Hub](docs/demo.gif)
