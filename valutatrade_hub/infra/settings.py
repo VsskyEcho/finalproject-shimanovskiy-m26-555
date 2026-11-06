@@ -48,12 +48,13 @@ class SettingsLoader:
         config.setdefault("users_path", "data/users.json")
         config.setdefault("portfolios_path", "data/portfolios.json")
         config.setdefault("rates_path", "data/rates.json")
-        (config.setdefault("exchange_rates_path", "data/exchange_rates.json"),)
-        (config.setdefault("parser_log_path", "logs/parser.log"),)
+        config.setdefault("exchange_rates_path", "data/exchange_rates.json")
+        config.setdefault("parser_log_path", "logs/parser.log")
         config.setdefault("log_path", "logs/actions.log")
         config.setdefault("log_level", "INFO")
         config.setdefault("log_max_bytes", 1_000_000)
         config.setdefault("log_backup_count", 3)
+        config.setdefault("scheduler_interval_seconds", 3600)
         self._config = config
 
     def get(self, key: str, default: Any = _MISSING) -> Any:

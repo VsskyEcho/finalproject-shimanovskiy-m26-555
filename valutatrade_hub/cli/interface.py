@@ -16,6 +16,7 @@ from valutatrade_hub.core.exceptions import (
 )
 from valutatrade_hub.core.models import User
 from valutatrade_hub.infra.settings import SettingsLoader
+from valutatrade_hub.parser_service.scheduler import RatesScheduler
 from valutatrade_hub.parser_service.updater import build_updater
 
 PROMPT = "> "
@@ -31,6 +32,8 @@ HELP_TEXT = """Доступные команды:
   update-rates [--source coingecko|exchangerate]
   show-rates [--currency <код>] [--top <N>] [--base <валюта>]
   list-currencies --список валют
+  start-scheduler [--interval <секунды>]
+  stop-scheduler
   help, exit"""
 
 
@@ -100,6 +103,10 @@ def build_parser() -> argparse.ArgumentParser:
     show_rates.add_argument("--currency")
     show_rates.add_argument("--top", type=int)
     show_rates.add_argument("--base", default=usecases.DEFAULT_BASE_CURRENCY)
+
+    scheduler = commands.add_parser("start-scheduler", help="автообновление курсов")
+    scheduler.add_argument("--interval", type=int)
+    commands.add_parser("stop-scheduler", help="остановить автообновление")
     return parser
 
 
@@ -111,6 +118,7 @@ class CommandLineInterface:
     def __init__(self) -> None:
         self._user: User | None = None
         self._parser = build_parser()
+        self._scheduler: RatesScheduler | None = None
         self._handlers: dict[str, Callable[[argparse.Namespace], None]] = {
             "register": self._handle_register,
             "login": self._handle_login,
@@ -121,6 +129,8 @@ class CommandLineInterface:
             "update-rates": self._handle_update_rates,
             "show-rates": self._handle_show_rates,
             "list-currencies": self._handle_list_currencies,
+            "start-scheduler": self._handle_start_scheduler,
+            "stop-scheduler": self._handle_stop_scheduler,
         }
 
     # основные функции
@@ -145,6 +155,8 @@ class CommandLineInterface:
                 print(HELP_TEXT)
                 continue
             self.execute(line)
+        if self._scheduler is not None:
+            self._scheduler.stop()
 
     def execute(self, line: str) -> None:
         """
@@ -319,6 +331,34 @@ class CommandLineInterface:
             print("Нет подходящих курсов в кеше.")
         for row in result["rows"]:
             print(f"- {row['pair']}: {_format_rate(row['rate'])}")
+
+    def _handle_start_scheduler(self, args: argparse.Namespace) -> None:
+        """
+        Запускает фоновый поток, который раз в interval_seconds
+        вызывает RatesUpdater.run_update()
+        """
+        if self._scheduler is not None and self._scheduler.is_running:
+            print("Планировщик уже запущен.")
+            return
+        interval = args.interval
+        if interval is None:
+            interval = SettingsLoader().get("scheduler_interval_seconds")
+        self._scheduler = RatesScheduler(build_updater(), interval)
+        self._scheduler.start()
+        print(
+            f"Планировщик запущен: курсы обновляются каждые {interval} с. "
+            "Подробности в logs/parser.log"
+        )
+
+    def _handle_stop_scheduler(self, args: argparse.Namespace) -> None:
+        """
+        Останавливает фоновый поток обновления курсов
+        """
+        if self._scheduler is None or not self._scheduler.is_running:
+            print("Планировщик не запущен.")
+            return
+        self._scheduler.stop()
+        print("Планировщик остановлен.")
 
 
 def run_cli() -> None:

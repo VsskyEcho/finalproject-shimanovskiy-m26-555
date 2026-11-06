@@ -5,6 +5,7 @@
 
 import logging
 import re
+import threading
 from collections.abc import Sequence
 from datetime import datetime, timezone
 from typing import Any
@@ -21,6 +22,7 @@ from valutatrade_hub.parser_service.storage import RatesStorage
 
 logger = logging.getLogger(PARSER_LOGGER_NAME)
 PAIR_PATTERN = re.compile(r"[A-Z0-9]{2,5}_[A-Z0-9]{2,5}")
+_UPDATE_LOCK = threading.Lock()
 
 
 def _utc_timestamp() -> str:
@@ -38,6 +40,13 @@ class RatesUpdater:
         self._storage = storage
 
     def run_update(self, source: str | None = None) -> dict[str, Any]:
+        """Обновляет курсы
+        одновременно выполняется только одно обновление
+        """
+        with _UPDATE_LOCK:
+            return self._run_update(source)
+
+    def _run_update(self, source: str | None = None) -> dict[str, Any]:
         """
         Обновляет курсы (source: 'coingecko' / 'exchangerate' / None = все)
 
