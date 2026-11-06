@@ -8,7 +8,17 @@ import tomllib
 from pathlib import Path
 from typing import Any
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_PACKAGE_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _find_project_root() -> Path:
+    """Корень проекта: рядом с pyproject.toml (разработка), иначе текущая папка."""
+    if (_PACKAGE_ROOT / "pyproject.toml").exists():
+        return _PACKAGE_ROOT
+    return Path.cwd()
+
+
+PROJECT_ROOT = _find_project_root()
 PYPROJECT_PATH = PROJECT_ROOT / "pyproject.toml"
 
 _MISSING = object()  # отличает «значение по умолчанию не задано» от None

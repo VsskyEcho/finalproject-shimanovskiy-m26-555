@@ -16,6 +16,7 @@ from valutatrade_hub.core.exceptions import (
 )
 from valutatrade_hub.core.models import User
 from valutatrade_hub.infra.settings import SettingsLoader
+from valutatrade_hub.logging_config import setup_logging
 from valutatrade_hub.parser_service.scheduler import RatesScheduler
 from valutatrade_hub.parser_service.updater import build_updater
 
@@ -365,4 +366,5 @@ def run_cli() -> None:
     """
     Запускает интерактивную консоль
     """
+    setup_logging()
     CommandLineInterface().run()
